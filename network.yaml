@@ -1,0 +1,384 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description:  This template deploys a VPC, with a public subnets spread
+  across 3 Availability Zones. It deploys an internet gateway, with a default
+  route on the public subnets. 
+
+Parameters:
+  SSHLocation:
+    Description: CID Range allowed to SSH to the EC2 instances.
+    Type: String
+    Default: 24.202.78.124/32
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+
+  Workload:
+    Description: The purpose of this application
+    Type: String
+    Default: "OnicaChallenge"
+  
+  InstanceSize:
+    Description: Instance size of choice for the EC2 instances
+    Type: String
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+    Default: "t2.micro"
+  
+  DesiredCapacity:
+    Description: Instance desired capacity
+    Type: Number
+    Default: "1"
+  
+  MinimumCapacity:
+    Description: Minimum capacity for web server deployment
+    Type: Number
+    Default: "1"
+  
+  MaximumCapacity:
+    Description: Macimum capacity for web server deployment
+    Type: Number
+    Default: "1"
+  
+  KeyPairName:
+    Description: Key Pair Name for EC2
+    Type: String
+    Default: "alex"
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.192.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.10.0/24
+
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.11.0/24
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: workload
+          Value: !Ref Workload
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: workload
+          Value: !Ref Workload
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} Public Subnet (AZ1)
+        - Key: workload
+          Value: !Ref Workload
+        
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} Public Subnet (AZ2)
+        - Key: workload
+          Value: !Ref Workload
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${Workload} Public Routes
+        - Key: workload
+          Value: !Ref Workload
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+  
+  ELBWebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "my-elb-web-sg"
+      GroupDescription: Enable HTTP access via port 80
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VPC
+      Tags:
+        - Key: workload
+          Value: !Ref Workload
+  
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "my-web-sg"
+      GroupDescription: "Security group with internet traffic & SSH access for admin"
+      VpcId: !Ref VPC
+      Tags:
+        - Key: workload
+          Value: !Ref Workload
+
+  WebServerSecurityGroupIngress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref WebServerSecurityGroup
+      IpProtocol: tcp
+      ToPort: 22
+      FromPort: 22
+      CidrIp: !Ref SSHLocation
+  
+  WebServerSecurityGroupIngress2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref WebServerSecurityGroup
+      IpProtocol: tcp
+      ToPort: 80
+      FromPort: 80
+      SourceSecurityGroupId: !GetAtt ELBWebServerSecurityGroup.GroupId
+  
+  myELB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties: 
+      IpAddressType: ipv4
+      Name: web-server-elb
+      Scheme: internet-facing
+      SecurityGroups: 
+        - !Ref ELBWebServerSecurityGroup
+      Subnets: 
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      Type: application
+      Tags:
+        - Key: workload
+          Value: !Ref Workload
+  
+  ELBTargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+        HealthCheckIntervalSeconds: 30
+        HealthCheckPath: "/"
+        Port: 80
+        Protocol: "HTTP"
+        HealthCheckPort: "traffic-port"
+        HealthCheckProtocol: "HTTP"
+        HealthCheckTimeoutSeconds: 5
+        UnhealthyThresholdCount: 2
+        TargetType: "instance"
+        Matcher: 
+            HttpCode: "200"
+        HealthyThresholdCount: 5
+        VpcId: !Ref VPC
+        Name: "target-group-1"
+        HealthCheckEnabled: true
+        TargetGroupAttributes: 
+          - 
+            Key: "stickiness.enabled"
+            Value: "true"
+          - 
+            Key: "deregistration_delay.timeout_seconds"
+            Value: "300"
+          - 
+            Key: "stickiness.type"
+            Value: "lb_cookie"
+          - 
+            Key: "stickiness.lb_cookie.duration_seconds"
+            Value: "86400"
+          - 
+            Key: "slow_start.duration_seconds"
+            Value: "0"
+          - 
+            Key: "load_balancing.algorithm.type"
+            Value: "round_robin"
+        Tags:
+        - Key: workload
+          Value: !Ref Workload
+  
+  myELBListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions: 
+        - 
+          Order: 1
+          TargetGroupArn: !Ref ELBTargetGroup
+          Type: "forward"
+      LoadBalancerArn: !Ref myELB
+      Port: 80
+      Protocol: HTTP
+
+  myLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-02f84cf47c23f1769
+      SecurityGroups: 
+        - !Ref WebServerSecurityGroup
+      InstanceType: !Ref InstanceSize
+      BlockDeviceMappings: 
+          - DeviceName: /dev/xvda
+            Ebs: 
+              VolumeSize: 8
+              VolumeType: "gp2"
+      KeyName: !Ref KeyPairName
+      UserData: !Base64 |
+        #!/bin/bash -x
+        yum update -y
+        yum install httpd.x86_64 -y
+        systemctl enable httpd.service
+        systemctl start httpd.service
+        echo "<h1><body>Hello world from $(hostname -f)</h1></html>" > /var/www/html/index.html
+        amazon-linux-extras install epel -y
+        yum install stress -y
+  
+  myASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      LaunchConfigurationName: !Ref myLaunchConfiguration
+      TargetGroupARNs:
+        - !Ref ELBTargetGroup
+      MinSize: !Ref MinimumCapacity
+      MaxSize: !Ref MaximumCapacity
+      DesiredCapacity: !Ref DesiredCapacity
+      HealthCheckGracePeriod: 300
+      HealthCheckType: ELB 
+      Tags:
+        - Key: workload
+          Value: !Ref Workload
+          PropagateAtLaunch: true
+  
+  WebServerScaleOutPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref myASG
+      Cooldown: '60'
+      ScalingAdjustment: 1
+  
+  WebServerScaleInPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref myASG
+      Cooldown: '60'
+      ScalingAdjustment: -1
+  
+  CpuHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 2
+      Period: 300
+      Statistic: Average
+      Threshold: 90
+      AlarmActions: 
+        - !Ref WebServerScaleOutPolicy
+      AlarmDescription: Scale out if CPU > 90% for 10 minutes
+      AlarmName: CpuHighAlarm
+      Dimensions: 
+        - Name: AutoScalingGroupName
+          Value: !Ref myASG
+  
+  CpuLowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      ComparisonOperator: LessThanThreshold
+      EvaluationPeriods: 2
+      Period: 300
+      Statistic: Average
+      Threshold: 70
+      AlarmActions: 
+        - !Ref WebServerScaleInPolicy
+      AlarmDescription: Scale in if CPU < 70% for 10 minutes
+      AlarmName: CpuLowAlarm
+      Dimensions: 
+        - Name: AutoScalingGroupName
+          Value: !Ref myASG
+
+Outputs:
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Ref VPC
+
+  PublicSubnet1:
+    Description: A reference to the public subnet in the 1st Availability Zone
+    Value: !Ref PublicSubnet1
+
+  PublicSubnet2:
+    Description: A reference to the public subnet in the 2nd Availability Zone
+    Value: !Ref PublicSubnet2
+
+  WebServerSecurityGroup:
+    Description: Web Server Security group
+    Value: !Ref WebServerSecurityGroup
+  
+  ELBWebServerSecurityGroup:
+    Description: ELB Security group 
+    Value: !Ref ELBWebServerSecurityGroup
+  
+  myLaunchConfiguration:
+    Description: Launch Configuration for the web servers
+    Value: !Ref myLaunchConfiguration
+
+  myASG:
+    Description: Auto Scaling Group associated to the Launch Configuration
+    Value: !Ref myASG
+
+  URL:
+    Description: The URL of the website
+    Value: !Join [ "", [ "http://", !GetAtt myELB.DNSName ] ]
