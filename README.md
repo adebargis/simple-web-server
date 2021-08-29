@@ -13,3 +13,7 @@ This repository contains a CloudFormation template that sets up your AWS account
     * Scale in (with CW Alarm)
 
 The only component that needs to be created manually is the EC2 SSH key (*Parameter Key: KeyPairName*)
+
+### Parameters 
+All the parameters have default value set in the template.
+You may want to update these for your personal use.
