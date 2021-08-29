@@ -278,9 +278,6 @@ Resources:
         echo "<h1><body>Hello world from $(hostname -f)</h1></html>" > /var/www/html/index.html
         amazon-linux-extras install epel -y
         yum install stress -y
-      Tags:
-        - Key: workload
-          Value: !Ref Workload
   
   myASG:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -299,6 +296,7 @@ Resources:
       Tags:
         - Key: workload
           Value: !Ref Workload
+          PropagateAtLaunch: true
   
   WebServerScaleOutPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
