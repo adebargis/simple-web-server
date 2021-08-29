@@ -95,8 +95,11 @@ Resources:
       CidrBlock: !Ref PublicSubnet1CIDR
       MapPublicIpOnLaunch: true
       Tags:
-        - Key: workload
+        - Key: Name
           Value: !Sub ${Workload} Public Subnet (AZ1)
+        - Key: workload
+          Value: !Ref Workload
+        
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
@@ -106,16 +109,20 @@ Resources:
       CidrBlock: !Ref PublicSubnet2CIDR
       MapPublicIpOnLaunch: true
       Tags:
-        - Key: workload
+        - Key: Name
           Value: !Sub ${Workload} Public Subnet (AZ2)
+        - Key: workload
+          Value: !Ref Workload
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
-        - Key: workload
+        - Key: Name
           Value: !Sub ${Workload} Public Routes
+        - Key: workload
+          Value: !Ref Workload
 
   DefaultPublicRoute:
     Type: AWS::EC2::Route
@@ -148,6 +155,9 @@ Resources:
           ToPort: 80
           CidrIp: 0.0.0.0/0
       VpcId: !Ref VPC
+      Tags:
+        - Key: workload
+          Value: !Ref Workload
   
   WebServerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -155,6 +165,9 @@ Resources:
       GroupName: "my-web-sg"
       GroupDescription: "Security group with internet traffic & SSH access for admin"
       VpcId: !Ref VPC
+      Tags:
+        - Key: workload
+          Value: !Ref Workload
 
   WebServerSecurityGroupIngress1:
     Type: AWS::EC2::SecurityGroupIngress
@@ -186,6 +199,9 @@ Resources:
         - !Ref PublicSubnet1
         - !Ref PublicSubnet2
       Type: application
+      Tags:
+        - Key: workload
+          Value: !Ref Workload
   
   ELBTargetGroup:
     Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
@@ -224,6 +240,9 @@ Resources:
           - 
             Key: "load_balancing.algorithm.type"
             Value: "round_robin"
+        Tags:
+        - Key: workload
+          Value: !Ref Workload
   
   myELBListenerRule:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -259,6 +278,9 @@ Resources:
         echo "<h1><body>Hello world from $(hostname -f)</h1></html>" > /var/www/html/index.html
         amazon-linux-extras install epel -y
         yum install stress -y
+      Tags:
+        - Key: workload
+          Value: !Ref Workload
   
   myASG:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -274,6 +296,9 @@ Resources:
       DesiredCapacity: !Ref DesiredCapacity
       HealthCheckGracePeriod: 300
       HealthCheckType: ELB 
+      Tags:
+        - Key: workload
+          Value: !Ref Workload
   
   WebServerScaleOutPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
