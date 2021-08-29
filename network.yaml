@@ -298,6 +298,41 @@ Resources:
       DesiredCapacity: !Ref DesiredCapacity
       HealthCheckGracePeriod: 300
       HealthCheckType: ELB 
+  
+  WebServerScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref myASG
+      Cooldown: 60
+      ScalingAdjustment: 1
+  
+  WebServerScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref myASG
+      Cooldown: 60
+      ScalingAdjustment: -1
+  
+  CpuHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 2
+      Period: 300
+      Statistic: Average
+      Threshold: 50
+      AlarmActions: 
+        - !Ref WebServerScaleUpPolicy
+      AlarmDescription: Scale-up if CPU > 50% for 10 minutes
+      AlarmName: CpuHighAlarm
+      Dimensions: 
+        - Name: AutoScalingGroupName
+          Value: !Ref WebServerScaleUpPolicy
+
 
 Outputs:
   VPC:
