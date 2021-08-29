@@ -156,8 +156,8 @@ Resources:
     Properties:
       GroupId: !Ref SGroup
       IpProtocol: tcp
-      ToPort: 0
-      FromPort: 65535
+      ToPort: 65535
+      FromPort: 0
       SourceSecurityGroupId: !GetAtt SGroup.GroupId
 
 Outputs:
