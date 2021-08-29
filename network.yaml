@@ -152,8 +152,8 @@ Resources:
       GroupDescription: Enable HTTP access via port 80
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: '80'
-          ToPort: '80'
+          FromPort: 80
+          ToPort: 80
           CidrIp: 0.0.0.0/0
       VpcId: !Ref VPC
   
@@ -164,14 +164,14 @@ Resources:
       GroupDescription: "Security group with internet traffic & SSH access for admin"
       VpcId: !Ref VPC
 
-  WebServerSecurityGroupIngress1:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref WebServerSecurityGroup
-      IpProtocol: tcp
-      ToPort: 80
-      FromPort: 80
-      CidrIp: 0.0.0.0/0
+  #WebServerSecurityGroupIngress1:
+  #  Type: AWS::EC2::SecurityGroupIngress
+  #  Properties:
+  #    GroupId: !Ref WebServerSecurityGroup
+  #    IpProtocol: tcp
+  #    ToPort: 80
+  #    FromPort: 80
+  #    CidrIp: 0.0.0.0/0
   
   WebServerSecurityGroupIngress2:
     Type: AWS::EC2::SecurityGroupIngress
@@ -187,9 +187,9 @@ Resources:
     Properties:
       GroupId: !Ref WebServerSecurityGroup
       IpProtocol: tcp
-      ToPort: 65535
-      FromPort: 0
-      SourceSecurityGroupId: !GetAtt WebServerSecurityGroup.GroupId
+      ToPort: 80
+      FromPort: 80
+      SourceSecurityGroupId: !GetAtt ELBWebServerSecurityGroup.GroupId
   
   myELB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -226,7 +226,7 @@ Resources:
         TargetGroupAttributes: 
           - 
             Key: "stickiness.enabled"
-            Value: "false"
+            Value: "true"
           - 
             Key: "deregistration_delay.timeout_seconds"
             Value: "300"
@@ -258,7 +258,7 @@ Resources:
   myLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      ImageId: ami-0739b0a7ba400c7cc
+      ImageId: ami-02f84cf47c23f1769
       SecurityGroups: 
         - !Ref WebServerSecurityGroup
       InstanceType: !Ref InstanceSize
@@ -270,6 +270,10 @@ Resources:
       KeyName: !Ref KeyPairName
       UserData: !Base64 |
         #!/bin/bash -x
+        yum update -y
+        yum install httpd.x86_64 -y
+        systemctl enable httpd.service
+        systemctl start httpd.service
         echo "<h1><body>Hello world from $(hostname -f)</h1></html>" > /var/www/html/index.html
   
   myASG:
@@ -286,7 +290,7 @@ Resources:
       MaxSize: '1'
       DesiredCapacity: !Ref InstanceDesiredCapacity
       HealthCheckGracePeriod: 300
-      HealthCheckType: ELB #EC2
+      HealthCheckType: ELB 
 
 Outputs:
   VPC:
