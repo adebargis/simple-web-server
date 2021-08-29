@@ -100,7 +100,6 @@ Resources:
         - Key: workload
           Value: !Ref Workload
         
-
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
