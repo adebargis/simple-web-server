@@ -5,8 +5,8 @@ Description:  This template deploys a VPC, with a public subnets spread
   route on the public subnets. 
 
 Parameters:
-  AdminSourceIP:
-    Description: Source IP for the admin
+  SSHLocation:
+    Description: CID Range allowed to SSH to the EC2 instances.
     Type: String
     Default: 24.202.78.124/32
 
@@ -164,25 +164,16 @@ Resources:
       GroupDescription: "Security group with internet traffic & SSH access for admin"
       VpcId: !Ref VPC
 
-  #WebServerSecurityGroupIngress1:
-  #  Type: AWS::EC2::SecurityGroupIngress
-  #  Properties:
-  #    GroupId: !Ref WebServerSecurityGroup
-  #    IpProtocol: tcp
-  #    ToPort: 80
-  #    FromPort: 80
-  #    CidrIp: 0.0.0.0/0
-  
-  WebServerSecurityGroupIngress2:
+  WebServerSecurityGroupIngress1:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref WebServerSecurityGroup
       IpProtocol: tcp
       ToPort: 22
       FromPort: 22
-      CidrIp: !Ref AdminSourceIP
+      CidrIp: !Ref SSHLocation
   
-  WebServerSecurityGroupIngress3:
+  WebServerSecurityGroupIngress2:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref WebServerSecurityGroup
