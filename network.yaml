@@ -14,8 +14,8 @@ Parameters:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
 
-  EnvironmentName:
-    Description: An environment name that is prefixed to resource names
+  Workload:
+    Description: The purpose of this application
     Type: String
     Default: "OnicaChallenge"
   
@@ -62,11 +62,6 @@ Parameters:
     Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
     Type: String
     Default: 10.192.11.0/24
-  
-  PublicSubnet3CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
-    Type: String
-    Default: 10.192.12.0/24
 
 Resources:
   VPC:
@@ -76,15 +71,15 @@ Resources:
       EnableDnsSupport: true
       EnableDnsHostnames: true
       Tags:
-        - Key: Name
-          Value: !Ref EnvironmentName
+        - Key: workload
+          Value: !Ref Workload
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
-        - Key: Name
-          Value: !Ref EnvironmentName
+        - Key: workload
+          Value: !Ref Workload
 
   InternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -100,8 +95,8 @@ Resources:
       CidrBlock: !Ref PublicSubnet1CIDR
       MapPublicIpOnLaunch: true
       Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Public Subnet (AZ1)
+        - Key: workload
+          Value: !Sub ${Workload} Public Subnet (AZ1)
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
@@ -111,27 +106,16 @@ Resources:
       CidrBlock: !Ref PublicSubnet2CIDR
       MapPublicIpOnLaunch: true
       Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Public Subnet (AZ2)
-
-  PublicSubnet3:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 2, !GetAZs  '' ]
-      CidrBlock: !Ref PublicSubnet3CIDR
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Public Subnet (AZ3)
+        - Key: workload
+          Value: !Sub ${Workload} Public Subnet (AZ2)
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Public Routes
+        - Key: workload
+          Value: !Sub ${Workload} Public Routes
 
   DefaultPublicRoute:
     Type: AWS::EC2::Route
@@ -152,12 +136,6 @@ Resources:
     Properties:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet2
-  
-  PublicSubnet3RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PublicRouteTable
-      SubnetId: !Ref PublicSubnet3
   
   ELBWebServerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -207,7 +185,6 @@ Resources:
       Subnets: 
         - !Ref PublicSubnet1
         - !Ref PublicSubnet2
-        - !Ref PublicSubnet3
       Type: application
   
   ELBTargetGroup:
@@ -289,7 +266,6 @@ Resources:
       VPCZoneIdentifier:
         - !Ref PublicSubnet1
         - !Ref PublicSubnet2
-        - !Ref PublicSubnet3
       LaunchConfigurationName: !Ref myLaunchConfiguration
       TargetGroupARNs:
         - !Ref ELBTargetGroup
@@ -363,10 +339,6 @@ Outputs:
   PublicSubnet2:
     Description: A reference to the public subnet in the 2nd Availability Zone
     Value: !Ref PublicSubnet2
-  
-  PublicSubnet3:
-    Description: A reference to the public subnet in the 3nd Availability Zone
-    Value: !Ref PublicSubnet3
 
   WebServerSecurityGroup:
     Description: Web Server Security group
