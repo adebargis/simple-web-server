@@ -331,7 +331,7 @@ Resources:
       AlarmName: CpuHighAlarm
       Dimensions: 
         - Name: AutoScalingGroupName
-          Value: !Ref WebServerScaleOutPolicy
+          Value: !Ref myASG
   
   CpuLowAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -349,7 +349,7 @@ Resources:
       AlarmName: CpuLowAlarm
       Dimensions: 
         - Name: AutoScalingGroupName
-          Value: !Ref WebServerScaleInPolicy
+          Value: !Ref myASG
 
 Outputs:
   VPC:
@@ -388,14 +388,14 @@ Outputs:
     Description: Auto Scaling Group associated to the Launch Configuration
     Value: !Ref myASG
   
-  CPUHighAlarm:
+  CpuHighAlarm:
     Description: CloudWatch Alarm that triggers the ASG scale out policy
-    Value: !Ref myASG
+    Value: !Ref CpuHighAlarm
 
-  CPULowAlarm:
+  CpuLowAlarm:
     Description: CloudWatch Alarm that triggers the ASG scale in policy
-    Value: !Ref myASG
-    
+    Value: !Ref CpuLowAlarm
+
   URL:
     Description: The URL of the website
     Value: !Join [ "", [ "http://", !GetAtt myELB.DNSName ] ]
