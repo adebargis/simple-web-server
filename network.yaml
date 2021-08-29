@@ -8,7 +8,7 @@ Parameters:
   AdminSourceIP:
     Description: Source IP for the admin
     Type: String
-    Default: "24.202.78.124"
+    Default: 24.202.78.124/32
 
   EnvironmentName:
     Description: An environment name that is prefixed to resource names
@@ -136,29 +136,29 @@ Resources:
   SGroupIngress1:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      GroupName: !Ref SGroup
+      GroupId: !Ref SGroup
       IpProtocol: tcp
       ToPort: 80
       FromPort: 80
       CidrIp: 0.0.0.0/0
   
-  #SGroupIngress2:
-  #  Type: AWS::EC2::SecurityGroupIngress
-  #  Properties:
-  #    GroupName: !Ref SGroup
-  #    IpProtocol: tcp
-  #    ToPort: 22
-  #    FromPort: 22
-  #    CidrIp: !Ref AdminSourceIP
+  SGroupIngress2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SGroup
+      IpProtocol: tcp
+      ToPort: 22
+      FromPort: 22
+      CidrIp: !Ref AdminSourceIP
   
-  #SGroupIngress3:
-  #  Type: AWS::EC2::SecurityGroupIngress
-  #  Properties:
-  #    GroupName: !Ref SGroup
-  #    IpProtocol: tcp
-  #    ToPort: 0
-  #    FromPort: 65535
-  #    SourceSecurityGroupName: !GetAtt SGroup.GroupId
+  SGroupIngress3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SGroup
+      IpProtocol: tcp
+      ToPort: 0
+      FromPort: 65535
+      SourceSecurityGroupId: !GetAtt SGroup.GroupId
 
 Outputs:
   VPC:
