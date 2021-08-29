@@ -299,20 +299,20 @@ Resources:
       HealthCheckGracePeriod: 300
       HealthCheckType: ELB 
   
-  WebServerScaleUpPolicy:
+  WebServerScaleOutPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties: 
       AdjustmentType: ChangeInCapacity
       AutoScalingGroupName: !Ref myASG
-      Cooldown: 60
+      Cooldown: '60'
       ScalingAdjustment: 1
   
-  WebServerScaleDownPolicy:
+  WebServerScaleInPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties: 
       AdjustmentType: ChangeInCapacity
       AutoScalingGroupName: !Ref myASG
-      Cooldown: 60
+      Cooldown: '60'
       ScalingAdjustment: -1
   
   CpuHighAlarm:
@@ -324,15 +324,32 @@ Resources:
       EvaluationPeriods: 2
       Period: 300
       Statistic: Average
-      Threshold: 50
+      Threshold: 90
       AlarmActions: 
-        - !Ref WebServerScaleUpPolicy
-      AlarmDescription: Scale-up if CPU > 50% for 10 minutes
+        - !Ref WebServerScaleOutPolicy
+      AlarmDescription: Scale out if CPU > 90% for 10 minutes
       AlarmName: CpuHighAlarm
       Dimensions: 
         - Name: AutoScalingGroupName
-          Value: !Ref WebServerScaleUpPolicy
-
+          Value: !Ref WebServerScaleOutPolicy
+  
+  CpuLowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      ComparisonOperator: LessThanThreshold
+      EvaluationPeriods: 2
+      Period: 300
+      Statistic: Average
+      Threshold: 70
+      AlarmActions: 
+        - !Ref WebServerScaleInPolicy
+      AlarmDescription: Scale in if CPU < 70% for 10 minutes
+      AlarmName: CpuLowAlarm
+      Dimensions: 
+        - Name: AutoScalingGroupName
+          Value: !Ref WebServerScaleInPolicy
 
 Outputs:
   VPC:
@@ -356,5 +373,29 @@ Outputs:
     Value: !Ref PublicSubnet2
 
   WebServerSecurityGroup:
-    Description: Security group with inbound rules
+    Description: Web Server Security group
     Value: !Ref WebServerSecurityGroup
+  
+  ELBWebServerSecurityGroup:
+    Description: ELB Security group 
+    Value: !Ref ELBWebServerSecurityGroup
+  
+  myLaunchConfiguration:
+    Description: Launch Configuration for the web servers
+    Value: !Ref myLaunchConfiguration
+
+  myASG:
+    Description: Auto Scaling Group associated to the Launch Configuration
+    Value: !Ref myASG
+  
+  CPUHighAlarm:
+    Description: CloudWatch Alarm that triggers the ASG scale out policy
+    Value: !Ref myASG
+
+  CPULowAlarm:
+    Description: CloudWatch Alarm that triggers the ASG scale in policy
+    Value: !Ref myASG
+    
+  URL:
+    Description: The URL of the website
+    Value: !Join [ "", [ "http://", !GetAtt myELB.DNSName ] ]
